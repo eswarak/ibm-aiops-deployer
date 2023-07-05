@@ -9,7 +9,7 @@
 #-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 #-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 #---------------------------------------------------------------------------------------------------------------------------------------------------"
-#  DELETE Topology 
+#  Restart Spark Jobs
 #
 #  IBM AIOps
 #
@@ -41,7 +41,7 @@ subjects:
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: aiops-delete-toloplogy
+  name: ibm-aiops-restart-spark-jobs
   namespace: ibm-aiops-installer
 spec:
   serviceAccountname: ibm-aiops-installer-admin
@@ -65,67 +65,17 @@ spec:
               #!/bin/bash
               #set -x
 
-
               echo "*****************************************************************************************************************************"
-              echo " ✅ STARTING: Delete Topology"
+              echo " ✅ STARTING: Restart Spark Jobs"
               echo "*****************************************************************************************************************************"
               echo ""
               echo "  ⏳ INSTALLATION START TIMESTAMP: $(date)"
               echo ""
               echo "------------------------------------------------------------------------------------------------------------------------------"
-              echo " 🚀 Deleting Topology"
-             
-              export AIOPS_NAMESPACE=$(oc get po -A|grep aiops-orchestrator-controller |awk '{print$1}')
-              oc project $AIOPS_NAMESPACE
-
-              while true; do oc port-forward statefulset/iaf-system-elasticsearch-es-aiops 9200; done &
+              oc delete pod  -n ibm-aiops --ignore-not-found $(oc get po -n ibm-aiops|grep spark|awk '{print$1}') --force --grace-period=0
+              oc delete pod  -n ibm-aiops --ignore-not-found $(oc get po -n ibm-aiops|grep metric|awk '{print$1}') --force --grace-period=0
 
 
-              oc scale deployment -l release=aiops-topology -n $AIOPS_NAMESPACE --replicas=0
-              oc scale deployment aiopsedge-instana-topology-integrator -n $AIOPS_NAMESPACE --replicas=0
-
-              oc exec -ti aiops-topology-cassandra-0 -n $AIOPS_NAMESPACE -- bash -c "/opt/ibm/cassandra/bin/cqlsh --ssl -u \$CASSANDRA_USER -p \$CASSANDRA_PASS -e \"DROP KEYSPACE janusgraph;\""
-
-              export username=$(oc get secret $(oc get secrets | grep -elastic-secret | awk '!/-min/' | awk '{print $1;}') -o jsonpath="{.data.username}"| base64 --decode)
-              export password=$(oc get secret $(oc get secrets | grep -elastic-secret | awk '!/-min/' | awk '{print $1;}') -o jsonpath="{.data.password}"| base64 --decode)
-
-              for index in $(curl -k -u $username:$password -XGET https://localhost:9200/_cat/indices | grep -E "searchservice" | awk '{print $3;}'); do
-                  echo $index
-              done
-
-              for index in $(curl -k -u $username:$password -XGET https://localhost:9200/_cat/indices | grep -E "searchservice" | awk '{print $3;}'); do
-                  curl -k -u $username:$password -XDELETE "https://localhost:9200/$index"
-              done
-
-              for index in $(curl -k -u $username:$password -XGET https://localhost:9200/_cat/indices | grep -E "searchservice" | awk '{print $3;}'); do
-                  echo $index
-              done
-
-
-              oc scale deployment -l release=aiops-topology -n $AIOPS_NAMESPACE --replicas=1
-              oc scale deployment aiopsedge-instana-topology-integrator -n $AIOPS_NAMESPACE --replicas=1
-
-              oc delete job -n $AIOPS_NAMESPACE aiops-ir-lifecycle-create-policies-job
-              oc delete job -n $AIOPS_NAMESPACE aiops-ir-lifecycle-policy-registry-svc-job
-
-              while [ `oc -n $AIOPS_NAMESPACE get pods| grep '0/' |grep -v "Completed"| grep -c ""` -gt 0 ]
-              do
-                echo "------------------------------------------------------------------------------------------------------------------------------"
-                echo "❌ $AIOPS_NAMESPACE not ready"
-                oc -n $AIOPS_NAMESPACE get pods| grep '0/' |grep -v "Completed"| awk '{print $1;}'| sed 's/^/       /'
-                sleep 15
-              done
-              echo "------------------------------------------------------------------------------------------------------------------------------"
-              echo "------------------------------------------------------------------------------------------------------------------------------"
-              echo " ❗ Please relaunch the installation to recreate topology resources"
-              echo "------------------------------------------------------------------------------------------------------------------------------"
-              echo "------------------------------------------------------------------------------------------------------------------------------"
-
-
-              echo ""
-              echo ""
-              echo "  ⏳ INSTALLATION END TIMESTAMP: $(date)"
-              echo ""
               echo "*****************************************************************************************************************************"
               echo " ✅ DONE"
               echo "*****************************************************************************************************************************"
