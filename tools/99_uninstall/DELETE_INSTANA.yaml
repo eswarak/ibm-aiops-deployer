@@ -151,11 +151,11 @@ spec:
               oc delete pvc  -n instana-datastores --all  &
               oc delete $(oc get crd -o name|grep cassandra) &
               oc delete $(oc get crd -o name|grep postgres) &
-               oc delete $(oc get crd -o name|grep strimzi) &
-                oc delete $(oc get crd -o name|grep clickhouse) &
-                oc delete crd units.instana.io
-                oc delete crd cores.instana.io
-                oc delete crd datastores.instana.io
+              oc delete $(oc get crd -o name|grep strimzi) &
+              oc delete $(oc get crd -o name|grep clickhouse) &
+              oc delete crd units.instana.io &
+              oc delete crd cores.instana.io &
+              oc delete crd datastores.instana.io &
 
 
               echo "*****************************************************************************************************************************"
